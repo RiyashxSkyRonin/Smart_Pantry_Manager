@@ -5,19 +5,23 @@ import android.app.AlertDialog;
 import android.database.Cursor;
 import android.os.Bundle;
 import android.text.InputType;
-import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.LinearLayout;
-import android.widget.TextView;
+import android.widget.ListView;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public class PantryActivity extends AppCompatActivity {
 
     private DatabaseHelper databaseHelper;
-    private LinearLayout pantryContainer;
+    private ListView pantryListView;
+    private IngredientAdapter ingredientAdapter;
+    private List<Ingredient> ingredients;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -25,10 +29,32 @@ public class PantryActivity extends AppCompatActivity {
         setContentView(R.layout.activity_pantry);
 
         databaseHelper = new DatabaseHelper(this);
-        pantryContainer = findViewById(R.id.pantryContainer);
+
+        pantryListView = findViewById(R.id.pantryListView);
+
+        ingredients = new ArrayList<>();
+
+        ingredientAdapter = new IngredientAdapter(
+                this,
+                ingredients,
+                new IngredientAdapter.IngredientActionListener() {
+                    @Override
+                    public void onEdit(Ingredient ingredient) {
+                        showIngredientDialog(ingredient);
+                    }
+
+                    @Override
+                    public void onDelete(Ingredient ingredient) {
+                        confirmDelete(ingredient);
+                    }
+                }
+        );
+
+        pantryListView.setAdapter(ingredientAdapter);
 
         Button btnAddIngredient = findViewById(R.id.btnAddIngredient);
-        btnAddIngredient.setOnClickListener(v -> showIngredientDialog(null));
+        btnAddIngredient.setOnClickListener(
+                v -> showIngredientDialog(null));
 
         displayIngredients();
     }
@@ -97,9 +123,11 @@ public class PantryActivity extends AppCompatActivity {
                                 double quantity =
                                         Double.parseDouble(quantityText);
 
-                                if (quantity <= 0) {
+                                if (quantity <= 0
+                                        || Double.isNaN(quantity)
+                                        || Double.isInfinite(quantity)) {
                                     Toast.makeText(this,
-                                            "Quantity must be greater than zero",
+                                            "Enter a valid quantity greater than zero",
                                             Toast.LENGTH_LONG).show();
                                     return;
                                 }
@@ -140,9 +168,11 @@ public class PantryActivity extends AppCompatActivity {
     private void confirmDelete(Ingredient ingredient) {
         new AlertDialog.Builder(this)
                 .setTitle("Delete Ingredient")
-                .setMessage("Remove " + ingredient.name + " from your pantry?")
+                .setMessage("Remove " + ingredient.name
+                        + " from your pantry?")
                 .setPositiveButton("Delete", (dialog, which) -> {
-                    int result = databaseHelper.deleteIngredient(ingredient.id);
+                    int result = databaseHelper.deleteIngredient(
+                            ingredient.id);
 
                     if (result > 0) {
                         displayIngredients();
@@ -160,7 +190,7 @@ public class PantryActivity extends AppCompatActivity {
     }
 
     private void displayIngredients() {
-        pantryContainer.removeAllViews();
+        ingredients.clear();
 
         try (Cursor cursor = databaseHelper.getAllIngredients()) {
             while (cursor.moveToNext()) {
@@ -177,74 +207,17 @@ public class PantryActivity extends AppCompatActivity {
                                 DatabaseHelper.COL_EXPIRY))
                 );
 
-                LinearLayout row = new LinearLayout(this);
-                row.setOrientation(LinearLayout.VERTICAL);
-                row.setPadding(8, 12, 8, 12);
-
-                String text = ingredient.name + " — "
-                        + ingredient.quantity + " " + ingredient.unit;
-
-                if (ingredient.expiry != null
-                        && !ingredient.expiry.isEmpty()) {
-                    text += "\nExpires: " + ingredient.expiry;
-                }
-
-                TextView item = new TextView(this);
-                item.setText(text);
-                item.setTextSize(18);
-                row.addView(item);
-
-                LinearLayout buttons = new LinearLayout(this);
-                buttons.setOrientation(LinearLayout.HORIZONTAL);
-
-                Button editButton = new Button(this);
-                editButton.setText("Edit");
-                editButton.setOnClickListener(
-                        v -> showIngredientDialog(ingredient));
-
-                Button deleteButton = new Button(this);
-                deleteButton.setText("Delete");
-                deleteButton.setOnClickListener(
-                        v -> confirmDelete(ingredient));
-
-                buttons.addView(editButton,
-                        new LinearLayout.LayoutParams(0,
-                                ViewGroup.LayoutParams.WRAP_CONTENT, 1));
-
-                buttons.addView(deleteButton,
-                        new LinearLayout.LayoutParams(0,
-                                ViewGroup.LayoutParams.WRAP_CONTENT, 1));
-
-                row.addView(buttons);
-
-                pantryContainer.addView(row,
-                        new LinearLayout.LayoutParams(
-                                ViewGroup.LayoutParams.MATCH_PARENT,
-                                ViewGroup.LayoutParams.WRAP_CONTENT));
+                ingredients.add(ingredient);
             }
         }
-    }
 
-    private static class Ingredient {
-        long id;
-        String name;
-        double quantity;
-        String unit;
-        String expiry;
-
-        Ingredient(long id, String name, double quantity,
-                   String unit, String expiry) {
-            this.id = id;
-            this.name = name;
-            this.quantity = quantity;
-            this.unit = unit;
-            this.expiry = expiry;
-        }
+        ingredientAdapter.notifyDataSetChanged();
     }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
+
         if (databaseHelper != null) {
             databaseHelper.close();
         }
