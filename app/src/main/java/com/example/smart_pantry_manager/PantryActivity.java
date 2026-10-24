@@ -5,10 +5,13 @@ import android.app.AlertDialog;
 import android.database.Cursor;
 import android.os.Bundle;
 import android.text.InputType;
+import android.view.Gravity;
+import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.ListView;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
@@ -53,6 +56,34 @@ public class PantryActivity extends AppCompatActivity {
         );
 
         pantryListView.setAdapter(ingredientAdapter);
+
+        // Display a message when the pantry is empty
+        TextView emptyMessage = new TextView(this);
+        emptyMessage.setText(
+                "Your pantry is empty.\nTap Add Ingredient to get started."
+        );
+        emptyMessage.setTextSize(18);
+        emptyMessage.setGravity(Gravity.CENTER);
+
+        int emptyPadding = (int) (24 *
+                getResources().getDisplayMetrics().density);
+
+        emptyMessage.setPadding(
+                emptyPadding,
+                emptyPadding,
+                emptyPadding,
+                emptyPadding
+        );
+
+        ViewGroup parent = (ViewGroup) pantryListView.getParent();
+
+        int listIndex = parent.indexOfChild(pantryListView);
+
+        ViewGroup.LayoutParams layoutParams =
+                pantryListView.getLayoutParams();
+
+        parent.addView(emptyMessage, listIndex + 1, layoutParams);
+        pantryListView.setEmptyView(emptyMessage);
 
         Button btnAddIngredient = findViewById(R.id.btnAddIngredient);
         btnAddIngredient.setOnClickListener(
@@ -114,12 +145,17 @@ public class PantryActivity extends AppCompatActivity {
             saveButton.setOnClickListener(v -> {
                 String name = nameInput.getText()
                         .toString().trim();
+
                 String quantityText = quantityInput.getText()
                         .toString().trim();
+
                 String unit = unitInput.getText()
                         .toString().trim();
+
+                // Convert slashes to hyphens for consistent storage
                 String expiry = expiryInput.getText()
-                        .toString().trim();
+                        .toString().trim()
+                        .replace('/', '-');
 
                 if (name.isEmpty()) {
                     nameInput.setError("Ingredient name is required");
@@ -266,6 +302,15 @@ public class PantryActivity extends AppCompatActivity {
         }
 
         ingredientAdapter.notifyDataSetChanged();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+
+        if (ingredientAdapter != null) {
+            ingredientAdapter.notifyDataSetChanged();
+        }
     }
 
     @Override
