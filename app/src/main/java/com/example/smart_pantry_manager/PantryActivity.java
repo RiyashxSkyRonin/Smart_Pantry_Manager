@@ -13,8 +13,11 @@ import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 public class PantryActivity extends AppCompatActivity {
 
@@ -31,7 +34,6 @@ public class PantryActivity extends AppCompatActivity {
         databaseHelper = new DatabaseHelper(this);
 
         pantryListView = findViewById(R.id.pantryListView);
-
         ingredients = new ArrayList<>();
 
         ingredientAdapter = new IngredientAdapter(
@@ -96,73 +98,125 @@ public class PantryActivity extends AppCompatActivity {
         String title = ingredient == null
                 ? "Add Ingredient" : "Edit Ingredient";
 
-        new AlertDialog.Builder(this)
+        AlertDialog dialog = new AlertDialog.Builder(this)
                 .setTitle(title)
                 .setView(form)
                 .setPositiveButton(
                         ingredient == null ? "Add" : "Save",
-                        (dialog, which) -> {
-                            String name = nameInput.getText()
-                                    .toString().trim();
-                            String quantityText = quantityInput.getText()
-                                    .toString().trim();
-                            String unit = unitInput.getText()
-                                    .toString().trim();
-                            String expiry = expiryInput.getText()
-                                    .toString().trim();
-
-                            if (name.isEmpty() || quantityText.isEmpty()
-                                    || unit.isEmpty()) {
-                                Toast.makeText(this,
-                                        "Enter name, quantity and unit",
-                                        Toast.LENGTH_LONG).show();
-                                return;
-                            }
-
-                            try {
-                                double quantity =
-                                        Double.parseDouble(quantityText);
-
-                                if (quantity <= 0
-                                        || Double.isNaN(quantity)
-                                        || Double.isInfinite(quantity)) {
-                                    Toast.makeText(this,
-                                            "Enter a valid quantity greater than zero",
-                                            Toast.LENGTH_LONG).show();
-                                    return;
-                                }
-
-                                long result;
-                                if (ingredient == null) {
-                                    result = databaseHelper.addIngredient(
-                                            name, quantity, unit, expiry);
-                                } else {
-                                    result = databaseHelper.updateIngredient(
-                                            ingredient.id, name, quantity,
-                                            unit, expiry);
-                                }
-
-                                if (result == -1) {
-                                    Toast.makeText(this,
-                                            "Could not save ingredient",
-                                            Toast.LENGTH_LONG).show();
-                                } else {
-                                    displayIngredients();
-                                    Toast.makeText(this,
-                                            ingredient == null
-                                                    ? "Ingredient added"
-                                                    : "Ingredient updated",
-                                            Toast.LENGTH_SHORT).show();
-                                }
-
-                            } catch (NumberFormatException e) {
-                                Toast.makeText(this,
-                                        "Enter a valid quantity",
-                                        Toast.LENGTH_LONG).show();
-                            }
-                        })
+                        null)
                 .setNegativeButton("Cancel", null)
-                .show();
+                .create();
+
+        dialog.setOnShowListener(ignored -> {
+            Button saveButton = dialog.getButton(
+                    AlertDialog.BUTTON_POSITIVE);
+
+            saveButton.setOnClickListener(v -> {
+                String name = nameInput.getText()
+                        .toString().trim();
+                String quantityText = quantityInput.getText()
+                        .toString().trim();
+                String unit = unitInput.getText()
+                        .toString().trim();
+                String expiry = expiryInput.getText()
+                        .toString().trim();
+
+                if (name.isEmpty()) {
+                    nameInput.setError("Ingredient name is required");
+                    nameInput.requestFocus();
+                    return;
+                }
+
+                if (quantityText.isEmpty()) {
+                    quantityInput.setError("Quantity is required");
+                    quantityInput.requestFocus();
+                    return;
+                }
+
+                if (unit.isEmpty()) {
+                    unitInput.setError("Unit is required");
+                    unitInput.requestFocus();
+                    return;
+                }
+
+                if (!isValidExpiryDate(expiry)) {
+                    expiryInput.setError(
+                            "Use a valid date: YYYY-MM-DD");
+                    expiryInput.requestFocus();
+                    return;
+                }
+
+                double quantity;
+
+                try {
+                    quantity = Double.parseDouble(quantityText);
+                } catch (NumberFormatException e) {
+                    quantityInput.setError("Enter a valid quantity");
+                    quantityInput.requestFocus();
+                    return;
+                }
+
+                if (quantity <= 0
+                        || Double.isNaN(quantity)
+                        || Double.isInfinite(quantity)) {
+                    quantityInput.setError(
+                            "Quantity must be greater than zero");
+                    quantityInput.requestFocus();
+                    return;
+                }
+
+                long result;
+
+                if (ingredient == null) {
+                    result = databaseHelper.addIngredient(
+                            name, quantity, unit, expiry);
+                } else {
+                    result = databaseHelper.updateIngredient(
+                            ingredient.id, name, quantity,
+                            unit, expiry);
+                }
+
+                if (result == -1) {
+                    Toast.makeText(this,
+                            "Could not save ingredient",
+                            Toast.LENGTH_LONG).show();
+                    return;
+                }
+
+                displayIngredients();
+
+                Toast.makeText(this,
+                        ingredient == null
+                                ? "Ingredient added"
+                                : "Ingredient updated",
+                        Toast.LENGTH_SHORT).show();
+
+                dialog.dismiss();
+            });
+        });
+
+        dialog.show();
+    }
+
+    private boolean isValidExpiryDate(String expiry) {
+        if (expiry.isEmpty()) {
+            return true;
+        }
+
+        if (!expiry.matches("\\d{4}-\\d{2}-\\d{2}")) {
+            return false;
+        }
+
+        SimpleDateFormat dateFormat =
+                new SimpleDateFormat("yyyy-MM-dd", Locale.ROOT);
+
+        dateFormat.setLenient(false);
+
+        try {
+            return dateFormat.parse(expiry) != null;
+        } catch (ParseException e) {
+            return false;
+        }
     }
 
     private void confirmDelete(Ingredient ingredient) {
