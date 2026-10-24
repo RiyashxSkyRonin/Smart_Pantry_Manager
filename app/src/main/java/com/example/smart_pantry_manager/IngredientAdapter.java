@@ -1,6 +1,8 @@
+
 package com.example.smart_pantry_manager;
 
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.view.View;
 import android.view.ViewGroup;
@@ -69,8 +71,22 @@ public class IngredientAdapter extends ArrayAdapter<Ingredient> {
 
         row.addView(ingredientText);
 
-        // Display expiry warnings
-        if (ingredient != null
+        // Read the saved Settings preference
+        SharedPreferences preferences =
+                getContext().getSharedPreferences(
+                        "SmartPantrySettings",
+                        Context.MODE_PRIVATE
+                );
+
+        boolean alertsEnabled =
+                preferences.getBoolean(
+                        "expiryAlertsEnabled",
+                        true
+                );
+
+        // Show expiry warnings only when enabled
+        if (alertsEnabled
+                && ingredient != null
                 && ingredient.expiry != null
                 && !ingredient.expiry.trim().isEmpty()) {
 
