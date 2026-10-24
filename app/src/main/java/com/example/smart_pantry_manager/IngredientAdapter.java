@@ -1,7 +1,7 @@
-
 package com.example.smart_pantry_manager;
 
 import android.content.Context;
+import android.graphics.Color;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
@@ -12,7 +12,12 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.List;
+import java.util.Locale;
+import java.util.concurrent.TimeUnit;
 
 public class IngredientAdapter extends ArrayAdapter<Ingredient> {
 
@@ -64,6 +69,29 @@ public class IngredientAdapter extends ArrayAdapter<Ingredient> {
 
         row.addView(ingredientText);
 
+        // Display expiry warnings
+        if (ingredient != null
+                && ingredient.expiry != null
+                && !ingredient.expiry.trim().isEmpty()) {
+
+            String warning = getExpiryWarning(ingredient.expiry);
+
+            if (!warning.isEmpty()) {
+                TextView warningText = new TextView(getContext());
+                warningText.setText(warning);
+                warningText.setTextSize(15);
+
+                if (warning.equals("EXPIRED")) {
+                    warningText.setTextColor(Color.RED);
+                } else {
+                    warningText.setTextColor(
+                            Color.rgb(230, 140, 0));
+                }
+
+                row.addView(warningText);
+            }
+        }
+
         LinearLayout buttonRow = new LinearLayout(getContext());
         buttonRow.setOrientation(LinearLayout.HORIZONTAL);
 
@@ -100,5 +128,39 @@ public class IngredientAdapter extends ArrayAdapter<Ingredient> {
         row.addView(buttonRow);
 
         return row;
+    }
+
+    private String getExpiryWarning(String expiry) {
+        SimpleDateFormat dateFormat =
+                new SimpleDateFormat("yyyy-MM-dd", Locale.ROOT);
+
+        dateFormat.setLenient(false);
+
+        try {
+            Date expiryDate = dateFormat.parse(expiry);
+
+            String todayText = dateFormat.format(new Date());
+            Date today = dateFormat.parse(todayText);
+
+            if (expiryDate == null || today == null) {
+                return "";
+            }
+
+            long daysRemaining = TimeUnit.MILLISECONDS.toDays(
+                    expiryDate.getTime() - today.getTime());
+
+            if (daysRemaining < 0) {
+                return "EXPIRED";
+            } else if (daysRemaining == 0) {
+                return "EXPIRES TODAY";
+            } else if (daysRemaining <= 3) {
+                return "EXPIRING SOON";
+            }
+
+        } catch (ParseException e) {
+            return "";
+        }
+
+        return "";
     }
 }
