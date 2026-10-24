@@ -28,6 +28,7 @@ public class PantryActivity extends AppCompatActivity {
     private ListView pantryListView;
     private IngredientAdapter ingredientAdapter;
     private List<Ingredient> ingredients;
+    private TextView ingredientCountText;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -57,7 +58,37 @@ public class PantryActivity extends AppCompatActivity {
 
         pantryListView.setAdapter(ingredientAdapter);
 
-        // Display a message when the pantry is empty
+        // Get the layout containing the pantry list
+        ViewGroup pantryContainer =
+                (ViewGroup) pantryListView.getParent();
+
+        int listPosition =
+                pantryContainer.indexOfChild(pantryListView);
+
+        // Add the ingredient counter above the list
+        ingredientCountText = new TextView(this);
+        ingredientCountText.setTextSize(16);
+
+        int counterPadding = (int) (12 *
+                getResources().getDisplayMetrics().density);
+
+        ingredientCountText.setPadding(
+                counterPadding,
+                counterPadding,
+                counterPadding,
+                counterPadding
+        );
+
+        pantryContainer.addView(
+                ingredientCountText,
+                listPosition,
+                new ViewGroup.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.WRAP_CONTENT
+                )
+        );
+
+        // Show a helpful message when the pantry is empty
         TextView emptyMessage = new TextView(this);
         emptyMessage.setText(
                 "Your pantry is empty.\nTap Add Ingredient to get started."
@@ -75,17 +106,46 @@ public class PantryActivity extends AppCompatActivity {
                 emptyPadding
         );
 
-        ViewGroup parent = (ViewGroup) pantryListView.getParent();
-
-        int listIndex = parent.indexOfChild(pantryListView);
-
-        ViewGroup.LayoutParams layoutParams =
+        // Reuse the ListView's layout dimensions so the
+        // empty message occupies the same available space
+        ViewGroup.LayoutParams listLayoutParams =
                 pantryListView.getLayoutParams();
 
-        parent.addView(emptyMessage, listIndex + 1, layoutParams);
+        int updatedListPosition =
+                pantryContainer.indexOfChild(pantryListView);
+
+        pantryContainer.addView(
+                emptyMessage,
+                updatedListPosition + 1,
+                new ViewGroup.LayoutParams(
+                        listLayoutParams.width,
+                        listLayoutParams.height
+                )
+        );
+
+        // Match the ListView's weight when using LinearLayout
+        if (pantryContainer instanceof LinearLayout
+                && listLayoutParams
+                instanceof LinearLayout.LayoutParams) {
+
+            LinearLayout.LayoutParams originalParams =
+                    (LinearLayout.LayoutParams) listLayoutParams;
+
+            LinearLayout.LayoutParams emptyParams =
+                    new LinearLayout.LayoutParams(
+                            originalParams.width,
+                            originalParams.height,
+                            originalParams.weight
+                    );
+
+            emptyMessage.setLayoutParams(emptyParams);
+        }
+
         pantryListView.setEmptyView(emptyMessage);
 
-        Button btnAddIngredient = findViewById(R.id.btnAddIngredient);
+        Button btnAddIngredient =
+                findViewById(R.id.btnAddIngredient);
+
         btnAddIngredient.setOnClickListener(
                 v -> showIngredientDialog(null));
 
@@ -98,6 +158,7 @@ public class PantryActivity extends AppCompatActivity {
 
         int padding = (int) (16 * getResources()
                 .getDisplayMetrics().density);
+
         form.setPadding(padding, padding, padding, padding);
 
         EditText nameInput = new EditText(this);
@@ -106,8 +167,10 @@ public class PantryActivity extends AppCompatActivity {
 
         EditText quantityInput = new EditText(this);
         quantityInput.setHint("Quantity");
-        quantityInput.setInputType(InputType.TYPE_CLASS_NUMBER
-                | InputType.TYPE_NUMBER_FLAG_DECIMAL);
+        quantityInput.setInputType(
+                InputType.TYPE_CLASS_NUMBER
+                        | InputType.TYPE_NUMBER_FLAG_DECIMAL
+        );
         form.addView(quantityInput);
 
         EditText unitInput = new EditText(this);
@@ -121,26 +184,30 @@ public class PantryActivity extends AppCompatActivity {
 
         if (ingredient != null) {
             nameInput.setText(ingredient.name);
-            quantityInput.setText(String.valueOf(ingredient.quantity));
+            quantityInput.setText(
+                    String.valueOf(ingredient.quantity)
+            );
             unitInput.setText(ingredient.unit);
             expiryInput.setText(ingredient.expiry);
         }
 
         String title = ingredient == null
-                ? "Add Ingredient" : "Edit Ingredient";
+                ? "Add Ingredient"
+                : "Edit Ingredient";
 
         AlertDialog dialog = new AlertDialog.Builder(this)
                 .setTitle(title)
                 .setView(form)
                 .setPositiveButton(
                         ingredient == null ? "Add" : "Save",
-                        null)
+                        null
+                )
                 .setNegativeButton("Cancel", null)
                 .create();
 
         dialog.setOnShowListener(ignored -> {
-            Button saveButton = dialog.getButton(
-                    AlertDialog.BUTTON_POSITIVE);
+            Button saveButton =
+                    dialog.getButton(AlertDialog.BUTTON_POSITIVE);
 
             saveButton.setOnClickListener(v -> {
                 String name = nameInput.getText()
@@ -152,19 +219,22 @@ public class PantryActivity extends AppCompatActivity {
                 String unit = unitInput.getText()
                         .toString().trim();
 
-                // Convert slashes to hyphens for consistent storage
                 String expiry = expiryInput.getText()
                         .toString().trim()
                         .replace('/', '-');
 
                 if (name.isEmpty()) {
-                    nameInput.setError("Ingredient name is required");
+                    nameInput.setError(
+                            "Ingredient name is required"
+                    );
                     nameInput.requestFocus();
                     return;
                 }
 
                 if (quantityText.isEmpty()) {
-                    quantityInput.setError("Quantity is required");
+                    quantityInput.setError(
+                            "Quantity is required"
+                    );
                     quantityInput.requestFocus();
                     return;
                 }
@@ -177,7 +247,8 @@ public class PantryActivity extends AppCompatActivity {
 
                 if (!isValidExpiryDate(expiry)) {
                     expiryInput.setError(
-                            "Use a valid date: YYYY-MM-DD");
+                            "Use a valid date: YYYY-MM-DD"
+                    );
                     expiryInput.requestFocus();
                     return;
                 }
@@ -185,9 +256,12 @@ public class PantryActivity extends AppCompatActivity {
                 double quantity;
 
                 try {
-                    quantity = Double.parseDouble(quantityText);
+                    quantity =
+                            Double.parseDouble(quantityText);
                 } catch (NumberFormatException e) {
-                    quantityInput.setError("Enter a valid quantity");
+                    quantityInput.setError(
+                            "Enter a valid quantity"
+                    );
                     quantityInput.requestFocus();
                     return;
                 }
@@ -195,8 +269,10 @@ public class PantryActivity extends AppCompatActivity {
                 if (quantity <= 0
                         || Double.isNaN(quantity)
                         || Double.isInfinite(quantity)) {
+
                     quantityInput.setError(
-                            "Quantity must be greater than zero");
+                            "Quantity must be greater than zero"
+                    );
                     quantityInput.requestFocus();
                     return;
                 }
@@ -205,27 +281,39 @@ public class PantryActivity extends AppCompatActivity {
 
                 if (ingredient == null) {
                     result = databaseHelper.addIngredient(
-                            name, quantity, unit, expiry);
+                            name,
+                            quantity,
+                            unit,
+                            expiry
+                    );
                 } else {
                     result = databaseHelper.updateIngredient(
-                            ingredient.id, name, quantity,
-                            unit, expiry);
+                            ingredient.id,
+                            name,
+                            quantity,
+                            unit,
+                            expiry
+                    );
                 }
 
                 if (result == -1) {
-                    Toast.makeText(this,
+                    Toast.makeText(
+                            this,
                             "Could not save ingredient",
-                            Toast.LENGTH_LONG).show();
+                            Toast.LENGTH_LONG
+                    ).show();
                     return;
                 }
 
                 displayIngredients();
 
-                Toast.makeText(this,
+                Toast.makeText(
+                        this,
                         ingredient == null
                                 ? "Ingredient added"
                                 : "Ingredient updated",
-                        Toast.LENGTH_SHORT).show();
+                        Toast.LENGTH_SHORT
+                ).show();
 
                 dialog.dismiss();
             });
@@ -244,7 +332,10 @@ public class PantryActivity extends AppCompatActivity {
         }
 
         SimpleDateFormat dateFormat =
-                new SimpleDateFormat("yyyy-MM-dd", Locale.ROOT);
+                new SimpleDateFormat(
+                        "yyyy-MM-dd",
+                        Locale.ROOT
+                );
 
         dateFormat.setLenient(false);
 
@@ -258,23 +349,35 @@ public class PantryActivity extends AppCompatActivity {
     private void confirmDelete(Ingredient ingredient) {
         new AlertDialog.Builder(this)
                 .setTitle("Delete Ingredient")
-                .setMessage("Remove " + ingredient.name
-                        + " from your pantry?")
-                .setPositiveButton("Delete", (dialog, which) -> {
-                    int result = databaseHelper.deleteIngredient(
-                            ingredient.id);
+                .setMessage(
+                        "Remove " + ingredient.name
+                                + " from your pantry?"
+                )
+                .setPositiveButton(
+                        "Delete",
+                        (dialog, which) -> {
+                            int result =
+                                    databaseHelper.deleteIngredient(
+                                            ingredient.id
+                                    );
 
-                    if (result > 0) {
-                        displayIngredients();
-                        Toast.makeText(this,
-                                "Ingredient deleted",
-                                Toast.LENGTH_SHORT).show();
-                    } else {
-                        Toast.makeText(this,
-                                "Could not delete ingredient",
-                                Toast.LENGTH_SHORT).show();
-                    }
-                })
+                            if (result > 0) {
+                                displayIngredients();
+
+                                Toast.makeText(
+                                        this,
+                                        "Ingredient deleted",
+                                        Toast.LENGTH_SHORT
+                                ).show();
+                            } else {
+                                Toast.makeText(
+                                        this,
+                                        "Could not delete ingredient",
+                                        Toast.LENGTH_SHORT
+                                ).show();
+                            }
+                        }
+                )
                 .setNegativeButton("Cancel", null)
                 .show();
     }
@@ -282,19 +385,36 @@ public class PantryActivity extends AppCompatActivity {
     private void displayIngredients() {
         ingredients.clear();
 
-        try (Cursor cursor = databaseHelper.getAllIngredients()) {
+        try (Cursor cursor =
+                     databaseHelper.getAllIngredients()) {
+
             while (cursor.moveToNext()) {
                 Ingredient ingredient = new Ingredient(
-                        cursor.getLong(cursor.getColumnIndexOrThrow(
-                                DatabaseHelper.COL_ID)),
-                        cursor.getString(cursor.getColumnIndexOrThrow(
-                                DatabaseHelper.COL_NAME)),
-                        cursor.getDouble(cursor.getColumnIndexOrThrow(
-                                DatabaseHelper.COL_QUANTITY)),
-                        cursor.getString(cursor.getColumnIndexOrThrow(
-                                DatabaseHelper.COL_UNIT)),
-                        cursor.getString(cursor.getColumnIndexOrThrow(
-                                DatabaseHelper.COL_EXPIRY))
+                        cursor.getLong(
+                                cursor.getColumnIndexOrThrow(
+                                        DatabaseHelper.COL_ID
+                                )
+                        ),
+                        cursor.getString(
+                                cursor.getColumnIndexOrThrow(
+                                        DatabaseHelper.COL_NAME
+                                )
+                        ),
+                        cursor.getDouble(
+                                cursor.getColumnIndexOrThrow(
+                                        DatabaseHelper.COL_QUANTITY
+                                )
+                        ),
+                        cursor.getString(
+                                cursor.getColumnIndexOrThrow(
+                                        DatabaseHelper.COL_UNIT
+                                )
+                        ),
+                        cursor.getString(
+                                cursor.getColumnIndexOrThrow(
+                                        DatabaseHelper.COL_EXPIRY
+                                )
+                        )
                 );
 
                 ingredients.add(ingredient);
@@ -302,6 +422,15 @@ public class PantryActivity extends AppCompatActivity {
         }
 
         ingredientAdapter.notifyDataSetChanged();
+
+        // Update the ingredient counter
+        int count = ingredients.size();
+
+        ingredientCountText.setText(
+                count + (count == 1
+                        ? " ingredient"
+                        : " ingredients")
+        );
     }
 
     @Override
