@@ -9,6 +9,11 @@ import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
 
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+
+
 import androidx.appcompat.app.AppCompatActivity;
 
 import java.util.ArrayList;
@@ -43,11 +48,20 @@ public class RecipesActivity extends AppCompatActivity {
         showMatchingRecipes();
     }
 
+
     private List<PantryItem> loadPantry() {
         List<PantryItem> pantry = new ArrayList<>();
 
+        SimpleDateFormat dateFormat =
+                new SimpleDateFormat("yyyy-MM-dd", Locale.ROOT);
+        dateFormat.setLenient(false);
+
+        // Today's date, without the time.
+        String todayText = dateFormat.format(new Date());
+
         try (Cursor cursor = databaseHelper.getAllIngredients()) {
             while (cursor.moveToNext()) {
+
                 String name = cursor.getString(
                         cursor.getColumnIndexOrThrow(
                                 DatabaseHelper.COL_NAME));
@@ -60,12 +74,37 @@ public class RecipesActivity extends AppCompatActivity {
                         cursor.getColumnIndexOrThrow(
                                 DatabaseHelper.COL_UNIT));
 
+                String expiry = cursor.getString(
+                        cursor.getColumnIndexOrThrow(
+                                DatabaseHelper.COL_EXPIRY));
+
+                // Skip expired ingredients.
+                if (expiry != null && !expiry.trim().isEmpty()) {
+                    try {
+                        Date expiryDate =
+                                dateFormat.parse(expiry.trim());
+
+                        Date today = dateFormat.parse(todayText);
+
+                        if (expiryDate != null
+                                && today != null
+                                && expiryDate.before(today)) {
+                            continue;
+                        }
+
+                    } catch (ParseException e) {
+                        // Do not recommend ingredients with invalid dates.
+                        continue;
+                    }
+                }
+
                 pantry.add(new PantryItem(name, quantity, unit));
             }
         }
 
         return pantry;
     }
+
 
     @SuppressLint("SetTextI18n")
     private void showMatchingRecipes() {
